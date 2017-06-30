@@ -49,14 +49,14 @@ public class TopBottomAnimation: NSObject, Animator {
 
     weak var containerView: UIView?
     
-    public var animationDuration :TimeInterval = 0.35
-    public var animateOutSpeed: Style.Speed = .fast
-    public var animateInSpeed: Style.Speed = .medium
+    public var animationDuration :TimeInterval = 0.75
+    public var animateOutSpeed: Style.Speed = .medium
+    public var animateInSpeed: Style.Speed = .slow
     var animationSpeed: Style.Speed = .medium {
         didSet {
             switch animationSpeed {
-            case .slow: animationDuration = 1.0
-            case .medium: animationDuration = 0.35
+            case .slow: animationDuration = 0.75
+            case .medium: animationDuration = 0.45
             case .fast: animationDuration = 0.2
             default: break
             }
@@ -133,10 +133,13 @@ public class TopBottomAnimation: NSObject, Animator {
     func animateInWith(_ style:Style , completion: @escaping AnimationCompletion) {
         animationSpeed = animateInSpeed
         if style == .bounce {
-            bounceAnimate(completion: completion)
+            bounceAnimateIn(completion: completion)
         }
         else if style == .fade {
             fadeAnimateIn(completion: completion)
+        }
+        else if style == .slide {
+            slideAnimateIn(completion: completion)
         }
     }
     
@@ -147,11 +150,11 @@ public class TopBottomAnimation: NSObject, Animator {
             fadeAnimateOut(completion: completion)
         }
         else {
-            animateViewOut(view, in: container, completion: completion)
+            slideAnimateViewOut(view, from: container, completion: completion)
         }
     }
     
-    func bounceAnimate(completion: @escaping AnimationCompletion) {
+    func bounceAnimateIn(completion: @escaping AnimationCompletion) {
         guard let container = containerView else {
             completion(false)
             return
@@ -160,7 +163,8 @@ public class TopBottomAnimation: NSObject, Animator {
         // Cap the initial velocity at zero because the bounceOffset may not be great
         // enough to allow for greater bounce induced by a quick panning motion.
         let initialSpringVelocity = animationDistance == 0.0 ? 0.0 : min(0.0, closeSpeed / animationDistance)
-        UIView.animate(withDuration: animationDuration, delay: 0.0, usingSpringWithDamping: 0.8, initialSpringVelocity: initialSpringVelocity, options: [.beginFromCurrentState, .curveLinear, .allowUserInteraction], animations: {
+        print(initialSpringVelocity)
+        UIView.animate(withDuration: animationDuration, delay: 0.0, usingSpringWithDamping: 0.85, initialSpringVelocity: 0.25, options: [.beginFromCurrentState, .curveLinear, .allowUserInteraction], animations: {
             self.translationConstraint.constant = -self.bounceOffset
             container.layoutIfNeeded()
         }, completion: { completed in
@@ -168,8 +172,21 @@ public class TopBottomAnimation: NSObject, Animator {
         })
     }
     
+    func slideAnimateIn(completion: @escaping AnimationCompletion) {
+        guard let container = containerView else {
+            completion(false)
+            return
+        }
+        UIView.animate(withDuration: animationDuration, delay: 0.0, options: [.beginFromCurrentState, .curveLinear, .allowUserInteraction], animations: {
+            self.translationConstraint.constant = -self.bounceOffset
+            container.layoutIfNeeded()
+        }) { (completed) in
+            completion(completed)
+        }
+    }
     
-    func animateViewOut(_ view:UIView, from container:UIView, completion: @escaping AnimationCompletion) {
+    
+    func slideAnimateViewOut(_ view:UIView, from container:UIView, completion: @escaping AnimationCompletion) {
         UIView.animate(withDuration: animationDuration, delay: 0, options: [.beginFromCurrentState, .curveEaseIn], animations: {
             let size = view.systemLayoutSizeFitting(UILayoutFittingCompressedSize)
             self.translationConstraint.constant -= size.height
