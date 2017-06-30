@@ -57,9 +57,9 @@ class Presenter: NSObject {
     private static func animator(forPresentationStyle style: SwiftMessages.PresentationStyle, delegate: AnimationDelegate) -> Animator {
         switch style {
         case .top:
-            return TopBottomAnimation(style: .top, delegate: delegate)
+            return TopBottomAnimation(direction: .fromTop, delegate: delegate)
         case .bottom:
-            return TopBottomAnimation(style: .bottom, delegate: delegate)
+            return TopBottomAnimation(direction: .fromBottom, delegate: delegate)
         case .center:
             return CenterAnimation(delegate: delegate)
         case .custom(let animator):

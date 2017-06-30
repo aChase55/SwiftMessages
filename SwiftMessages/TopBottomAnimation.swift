@@ -9,15 +9,37 @@
 import UIKit
 
 public class TopBottomAnimation: NSObject, Animator {
-
+    
+    enum Direction {
+        case fromTop
+        case fromBottom
+    }
+    
+    //Animation Style
     enum Style {
-        case top
-        case bottom
+        //No animation
+        case appear
+        //Linear animation
+        case slide
+        //Spring animation
+        case bounce
+        //Alpha Animation
+        case fade
+        
+        //Animation Speed
+        enum Speed {
+            //1s
+            case slow
+            //0.55s
+            case medium
+            //0.35s
+            case fast
+        }
     }
 
     public weak var delegate: AnimationDelegate?
 
-    var style: Style
+    var direction: Direction
 
     var translationConstraint: NSLayoutConstraint! = nil
 
@@ -25,26 +47,20 @@ public class TopBottomAnimation: NSObject, Animator {
 
     weak var containerView: UIView?
 
-    init(style: Style, delegate: AnimationDelegate) {
-        self.style = style
+    init(direction: Direction, delegate: AnimationDelegate) {
+        self.direction = direction
         self.delegate = delegate
     }
 
     public func show(context: AnimationContext, completion: @escaping AnimationCompletion) {
         install(context: context)
-        showAnimation(completion: completion)
+        animateInWith(.bounce, completion: completion)
     }
 
     public func hide(context: AnimationContext, completion: @escaping AnimationCompletion) {
         let view = context.messageView
         let container = context.containerView
-        UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .curveEaseIn], animations: {
-            let size = view.systemLayoutSizeFitting(UILayoutFittingCompressedSize)
-            self.translationConstraint.constant -= size.height
-            container.layoutIfNeeded()
-        }, completion: { completed in
-            completion(completed)
-        })
+        animateViewOut(view, in: container, completion: completion)
     }
 
     func install(context: AnimationContext) {
@@ -59,23 +75,23 @@ public class TopBottomAnimation: NSObject, Animator {
         container.addSubview(view)
         let leading = NSLayoutConstraint(item: view, attribute: .leading, relatedBy: .equal, toItem: container, attribute: .leading, multiplier: 1.00, constant: 0.0)
         let trailing = NSLayoutConstraint(item: view, attribute: .trailing, relatedBy: .equal, toItem: container, attribute: .trailing, multiplier: 1.00, constant: 0.0)
-        switch style {
-        case .top:
+        switch direction {
+        case .fromTop:
             translationConstraint = NSLayoutConstraint(item: view, attribute: .top, relatedBy: .equal, toItem: container, attribute: .top, multiplier: 1.00, constant: 0.0)
-        case .bottom:
+        case .fromBottom:
             translationConstraint = NSLayoutConstraint(item: container, attribute: .bottom, relatedBy: .equal, toItem: view, attribute: .bottom, multiplier: 1.00, constant: 0.0)
         }
         container.addConstraints([leading, trailing, translationConstraint])
         if let adjustable = view as? MarginAdjustable {
             var top: CGFloat = 0.0
             var bottom: CGFloat = 0.0
-            switch style {
-            case .top:
+            switch direction {
+            case .fromTop:
                 top += adjustable.bounceAnimationOffset
                 if context.behindStatusBar {
                     top += adjustable.statusBarOffset
                 }
-            case .bottom:
+            case .fromBottom:
                 bottom += adjustable.bounceAnimationOffset
             }
             view.layoutMargins = UIEdgeInsets(top: top, left: 0.0, bottom: bottom, right: 0.0)
@@ -94,7 +110,8 @@ public class TopBottomAnimation: NSObject, Animator {
         }
     }
 
-    func showAnimation(completion: @escaping AnimationCompletion) {
+    fileprivate var bounceOffset: CGFloat = 5
+    func animateInWith(_ style:Style , completion: @escaping AnimationCompletion) {
         guard let container = containerView else {
             completion(false)
             return
@@ -110,8 +127,16 @@ public class TopBottomAnimation: NSObject, Animator {
             completion(completed)
         })
     }
-
-    fileprivate var bounceOffset: CGFloat = 5
+    
+    func animateViewOut(_ view:UIView, in container:UIView, completion: @escaping AnimationCompletion) {
+        UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .curveEaseIn], animations: {
+            let size = view.systemLayoutSizeFitting(UILayoutFittingCompressedSize)
+            self.translationConstraint.constant -= size.height
+            container.layoutIfNeeded()
+        }, completion: { completed in
+            completion(completed)
+        })
+    }
 
     /*
      MARK: - Pan to close
@@ -131,7 +156,7 @@ public class TopBottomAnimation: NSObject, Animator {
             let point = pan.location(ofTouch: 0, in: view)
             var velocity = pan.velocity(in: view)
             var translation = pan.translation(in: view)
-            if case .top = style {
+            if case .fromTop = direction {
                 velocity.y *= -1.0
                 translation.y *= -1.0
             }
@@ -156,8 +181,8 @@ public class TopBottomAnimation: NSObject, Animator {
                 closeSpeed = 0.0
                 closePercent = 0.0
                 panTranslationY = 0.0
-                showAnimation(completion: { (completed) in
-                    self.delegate?.panEnded(animator: self)
+                animateInWith(.bounce, completion: {[weak self] (completed)  in
+                    self?.delegate?.panEnded(animator: self!)
                 })
             }
         default:
