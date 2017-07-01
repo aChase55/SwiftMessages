@@ -38,16 +38,19 @@ public class TopBottomAnimation: NSObject, Animator {
             case custom
         }
     }
-
+    
     public weak var delegate: AnimationDelegate?
-
+    
     var direction: Direction
-
+    
     var translationConstraint: NSLayoutConstraint! = nil
-
+    
     weak var messageView: UIView?
-
+    
     weak var containerView: UIView?
+    
+    
+    var viewHeight: CGFloat = 0.0
     
     public var animationDuration :TimeInterval = 0.75
     public var animateOutSpeed: Style.Speed = .medium
@@ -63,29 +66,30 @@ public class TopBottomAnimation: NSObject, Animator {
         }
     }
     
-    var animationStyle: Style = .bounce
-
+    var animationStyle: Style = .slide
+    
     init(direction: Direction, delegate: AnimationDelegate) {
         self.direction = direction
         self.delegate = delegate
     }
-
+    
     public func show(context: AnimationContext, completion: @escaping AnimationCompletion) {
         install(context: context)
         animationSpeed = .medium
         animateInWith(animationStyle, completion: completion)
     }
-
+    
     public func hide(context: AnimationContext, completion: @escaping AnimationCompletion) {
         let view = context.messageView
         let container = context.containerView
         animateViewOut(view, in: container, completion: completion)
     }
-
+    
     func install(context: AnimationContext) {
         let view = context.messageView
         let container = context.containerView
         messageView = view
+        viewHeight = -(messageView?.bounds.height)!
         containerView = container
         if let adjustable = context.messageView as? MarginAdjustable {
             bounceOffset = adjustable.bounceAnimationOffset
@@ -96,7 +100,7 @@ public class TopBottomAnimation: NSObject, Animator {
         let trailing = NSLayoutConstraint(item: view, attribute: .trailing, relatedBy: .equal, toItem: container, attribute: .trailing, multiplier: 1.00, constant: 0.0)
         switch direction {
         case .fromTop:
-            translationConstraint = NSLayoutConstraint(item: view, attribute: .top, relatedBy: .equal, toItem: container, attribute: .top, multiplier: 1.00, constant: 0.0)
+            translationConstraint = NSLayoutConstraint(item: view, attribute: .top, relatedBy: .equal, toItem: container, attribute: .top, multiplier: 1.00, constant: viewHeight)
         case .fromBottom:
             translationConstraint = NSLayoutConstraint(item: container, attribute: .bottom, relatedBy: .equal, toItem: view, attribute: .bottom, multiplier: 1.00, constant: 0.0)
         }
@@ -113,6 +117,7 @@ public class TopBottomAnimation: NSObject, Animator {
             case .fromBottom:
                 bottom += adjustable.bounceAnimationOffset
             }
+            print(top)
             view.layoutMargins = UIEdgeInsets(top: top, left: 0.0, bottom: bottom, right: 0.0)
         }
         let size = view.systemLayoutSizeFitting(UILayoutFittingCompressedSize)
@@ -128,7 +133,7 @@ public class TopBottomAnimation: NSObject, Animator {
             }
         }
     }
-
+    
     fileprivate var bounceOffset: CGFloat = 5
     func animateInWith(_ style:Style , completion: @escaping AnimationCompletion) {
         animationSpeed = animateInSpeed
@@ -145,7 +150,7 @@ public class TopBottomAnimation: NSObject, Animator {
     
     func animateViewOut(_ view:UIView, in container:UIView, completion: @escaping AnimationCompletion) {
         animationSpeed = animateOutSpeed
-        
+        self.animationStyle = .slide
         if self.animationStyle == .fade {
             fadeAnimateOut(completion: completion)
         }
@@ -162,9 +167,8 @@ public class TopBottomAnimation: NSObject, Animator {
         let animationDistance = self.translationConstraint.constant + bounceOffset
         // Cap the initial velocity at zero because the bounceOffset may not be great
         // enough to allow for greater bounce induced by a quick panning motion.
-        let initialSpringVelocity = animationDistance == 0.0 ? 0.0 : min(0.0, closeSpeed / animationDistance)
-        print(initialSpringVelocity)
-        UIView.animate(withDuration: animationDuration, delay: 0.0, usingSpringWithDamping: 0.85, initialSpringVelocity: 0.25, options: [.beginFromCurrentState, .curveLinear, .allowUserInteraction], animations: {
+        //        let initialSpringVelocity = animationDistance == 0.0 ? 0.0 : min(0.0, closeSpeed / animationDistance)
+        UIView.animate(withDuration: animationDuration, delay: 1.0, usingSpringWithDamping: 0.85, initialSpringVelocity: 0.25, options: [.beginFromCurrentState, .curveLinear, .allowUserInteraction], animations: {
             self.translationConstraint.constant = -self.bounceOffset
             container.layoutIfNeeded()
         }, completion: { completed in
@@ -177,8 +181,8 @@ public class TopBottomAnimation: NSObject, Animator {
             completion(false)
             return
         }
-        UIView.animate(withDuration: animationDuration, delay: 0.0, options: [.beginFromCurrentState, .curveLinear, .allowUserInteraction], animations: {
-            self.translationConstraint.constant = -self.bounceOffset
+        UIView.animate(withDuration: animationDuration, delay: 1.0, options: [.curveLinear, .allowUserInteraction], animations: {
+            self.translationConstraint.constant = 0
             container.layoutIfNeeded()
         }) { (completed) in
             completion(completed)
@@ -188,8 +192,8 @@ public class TopBottomAnimation: NSObject, Animator {
     
     func slideAnimateViewOut(_ view:UIView, from container:UIView, completion: @escaping AnimationCompletion) {
         UIView.animate(withDuration: animationDuration, delay: 0, options: [.beginFromCurrentState, .curveEaseIn], animations: {
-            let size = view.systemLayoutSizeFitting(UILayoutFittingCompressedSize)
-            self.translationConstraint.constant -= size.height
+            let offset = view.bounds.height
+            self.translationConstraint.constant = self.viewHeight
             container.layoutIfNeeded()
         }, completion: { completed in
             completion(completed)
@@ -224,12 +228,12 @@ public class TopBottomAnimation: NSObject, Animator {
     /*
      MARK: - Pan to close
      */
-
+    
     fileprivate var closing = false
     fileprivate var closeSpeed: CGFloat = 0.0
     fileprivate var closePercent: CGFloat = 0.0
     fileprivate var panTranslationY: CGFloat = 0.0
-
+    
     @objc func pan(_ pan: UIPanGestureRecognizer) {
         switch pan.state {
         case .changed:
