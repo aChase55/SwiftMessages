@@ -55,6 +55,8 @@ public class TopBottomAnimation: NSObject, Animator {
     public var animationDuration :TimeInterval = 0.75
     public var animateOutSpeed: Style.Speed = .medium
     public var animateInSpeed: Style.Speed = .slow
+    public var animationStyle: Style = .bounce
+    
     var animationSpeed: Style.Speed = .medium {
         didSet {
             switch animationSpeed {
@@ -66,7 +68,6 @@ public class TopBottomAnimation: NSObject, Animator {
         }
     }
     
-    var animationStyle: Style = .slide
     
     init(direction: Direction, delegate: AnimationDelegate) {
         self.direction = direction
@@ -117,7 +118,6 @@ public class TopBottomAnimation: NSObject, Animator {
             case .fromBottom:
                 bottom += adjustable.bounceAnimationOffset
             }
-            print(top)
             view.layoutMargins = UIEdgeInsets(top: top, left: 0.0, bottom: bottom, right: 0.0)
         }
         let size = view.systemLayoutSizeFitting(UILayoutFittingCompressedSize)
